@@ -81,6 +81,39 @@ class PolicyTests(unittest.TestCase):
                     }
                 )
 
+    def test_create_container_requires_name_when_container_allowlist_present(self):
+        with tempfile.TemporaryDirectory() as td:
+            policy_file = Path(td) / "policy.yaml"
+            policy_file.write_text(
+                textwrap.dedent(
+                    """
+                    enabled: true
+                    default_action: allow
+                    match_mode: [exact, glob]
+                    resources:
+                      containers:
+                        allow: ["lab-*"]
+                        deny: []
+                      images: {allow: [], deny: []}
+                      projects: {allow: [], deny: []}
+                    profiles:
+                      creator:
+                        capabilities: [observe, create]
+                    """
+                ).strip()
+                + "\n",
+                encoding="utf-8",
+            )
+            policy = load_policy(policy_file)
+            engine = AuthzEngine(policy=policy, profile_name="creator")
+
+            unnamed = engine.authorize(TargetContext(tool_name="create-container", image="nginx"))
+            named = engine.authorize(TargetContext(tool_name="create-container", container_name="lab-api", image="nginx"))
+
+            self.assertFalse(unnamed.allowed)
+            self.assertIn("container name is required", unnamed.reason)
+            self.assertTrue(named.allowed)
+
 
 if __name__ == "__main__":
     unittest.main()

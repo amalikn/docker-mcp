@@ -119,6 +119,20 @@ class AuthzEngine:
         if not ok:
             return Decision(False, required, reason)
 
+        # If container allow-list exists, create-container must provide a target name
+        # so resource policy can be evaluated deterministically.
+        if (
+            ctx.tool_name == "create-container"
+            and self.policy.enabled
+            and self.policy.containers.allow
+            and not normalize_name(ctx.container_name)
+        ):
+            return Decision(
+                False,
+                required,
+                "container name is required for create-container when containers.allow is configured",
+            )
+
         ok, rreason = self._check_resources(ctx)
         if not ok:
             return Decision(False, required, rreason)
