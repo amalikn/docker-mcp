@@ -1,0 +1,56 @@
+enabled: true
+default_action: allow
+match_mode:
+  - exact
+  - glob
+
+resources:
+  containers:
+    allow:
+      - "lab-*"
+      - "test-*"
+    deny:
+      - "openbao"
+      - "vault"
+      - "prod-*"
+
+  images:
+    allow:
+      - "docker.io/library/nginx:*"
+      - "docker.io/library/redis:*"
+      - "ghcr.io/yourorg/*"
+    deny:
+      - "*/openbao*"
+      - "*/vault*"
+
+  projects:
+    allow:
+      - "lab-*"
+    deny:
+      - "prod-*"
+      - "infra-*"
+
+profiles:
+  use_only:
+    capabilities: ["observe"]
+
+  creator:
+    capabilities: ["observe", "create"]
+
+  modifier:
+    capabilities: ["observe", "modify"]
+
+  operator:
+    capabilities: ["observe", "create", "modify"]
+
+  executor:
+    capabilities: ["observe", "exec"]
+
+  destroyer:
+    capabilities: ["observe", "destroy"]
+
+  maintainer:
+    capabilities: ["observe", "create", "modify", "destroy"]
+
+  admin:
+    capabilities: ["observe", "create", "modify", "exec", "destroy", "admin"]

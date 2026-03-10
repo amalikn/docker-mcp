@@ -6,7 +6,7 @@ import mcp.types as types
 from mcp.server import NotificationOptions, Server
 from mcp.server.models import InitializationOptions
 import mcp.server.stdio
-from .handlers import DockerHandlers
+from .handlers import DockerHandlers, init_authorization
 
 server = Server("docker-mcp")
 
@@ -168,6 +168,7 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any] | None) -> List[
 
 
 async def main():
+    init_authorization()
     signal.signal(signal.SIGINT, handle_shutdown)
     signal.signal(signal.SIGTERM, handle_shutdown)
 

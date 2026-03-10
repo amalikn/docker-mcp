@@ -1,206 +1,82 @@
 # 🐳 docker-mcp
 
-[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/release/python-3120/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![smithery badge](https://smithery.ai/badge/docker-mcp)](https://smithery.ai/protocol/docker-mcp)
+A Model Context Protocol (MCP) server for Docker operations.
 
-A powerful Model Context Protocol (MCP) server for Docker operations, enabling seamless container and compose stack management through Claude AI.
+## Features
 
-## ✨ Features
+- Create standalone Docker containers
+- Deploy Docker Compose stacks
+- Retrieve container logs
+- List containers
+- Deny-first authorization (resource + capability)
+- Immutable policy/restriction guardrails
+- Authorization audit logging
 
-- 🚀 Container creation and instantiation
-- 📦 Docker Compose stack deployment
-- 🔍 Container logs retrieval
-- 📊 Container listing and status monitoring
+## Security model
 
-### 🎬 Demos
-#### Deploying a Docker Compose Stack
+The server enforces two independent authorization layers:
 
+1. Capability policy (what actions are allowed)
+2. Resource policy (which containers/images/projects are allowed)
 
-https://github.com/user-attachments/assets/b5f6e40a-542b-4a39-ba12-7fdf803ee278
+Deny rules always take precedence over allow rules.
 
+## Runtime configuration (path-agnostic)
 
+Set these environment variables when starting the server:
 
-#### Analyzing Container Logs
+- `DOCKER_MCP_POLICY_FILE` (required)
+- `DOCKER_MCP_ACCESS_PROFILE` (required)
+- `DOCKER_MCP_DATA_DIR` (optional base dir)
+- `DOCKER_MCP_PROTECTED_PATHS` (optional comma-separated absolute paths)
+- `DOCKER_MCP_AUTHZ_LOG_FILE` (optional explicit authz log path)
 
-
-
-https://github.com/user-attachments/assets/da386eea-2fab-4835-82ae-896de955d934
-
-
-
-## 🚀 Quickstart
-
-To try this in Claude Desktop app, add this to your claude config files:
-```json
-{
-  "mcpServers": {
-    "docker-mcp": {
-      "command": "uvx",
-      "args": [
-        "docker-mcp"
-      ]
-    }
-  }
-}
-```
-
-### Installing via Smithery
-
-To install Docker MCP for Claude Desktop automatically via [Smithery](https://smithery.ai/protocol/docker-mcp):
+Example:
 
 ```bash
-npx @smithery/cli install docker-mcp --client claude
+export DOCKER_MCP_DATA_DIR="<MCP_DATA_ROOT>/docker-mcp"
+export DOCKER_MCP_POLICY_FILE="${DOCKER_MCP_DATA_DIR}/policy.yaml"
+export DOCKER_MCP_ACCESS_PROFILE="creator"
+export DOCKER_MCP_AUTHZ_LOG_FILE="${DOCKER_MCP_DATA_DIR}/authz.log"
 ```
 
-### Prerequisites
+## Policy file
 
-- UV (package manager)
-- Python 3.12+
-- Docker Desktop or Docker Engine
-- Claude Desktop
+Use `examples/policy.yaml` as the baseline schema.
 
-### Installation
+### Deny-first evaluation
 
-#### Claude Desktop Configuration
+For each target (container/image/project):
 
-Add the server configuration to your Claude Desktop config file:
+1. If any deny rule matches -> deny
+2. Else if allow list is non-empty and no allow rule matches -> deny
+3. Else follow default action
 
-**MacOS**: `~/Library/Application\ Support/Claude/claude_desktop_config.json`  
-**Windows**: `%APPDATA%/Claude/claude_desktop_config.json`
+## Guardrails (immutable restrictions)
 
-<details>
-  <summary>💻 Development Configuration</summary>
+`docker-mcp` blocks operations that would expose or mount protected policy/restriction paths.
 
-```json
-{
-  "mcpServers": {
-    "docker-mcp": {
-      "command": "uv",
-      "args": [
-        "--directory",
-        "<path-to-docker-mcp>",
-        "run",
-        "docker-mcp"
-      ]
-    }
-  }
-}
-```
-</details>
+- `create-container`: hook retained for future mutable path inputs.
+- `deploy-compose`: rejects compose files that include:
+  - bind mounts to protected policy/restriction paths
+  - docker socket mounts
+  - privileged mode
+  - host pid/ipc/network modes
 
-<details>
-  <summary>🚀 Production Configuration</summary>
+## list-containers behavior
 
-```json
-{
-  "mcpServers": {
-    "docker-mcp": {
-      "command": "uvx",
-      "args": [
-        "docker-mcp"
-      ]
-    }
-  }
-}
-```
-</details>
+Returns all containers and appends per-row policy metadata:
 
-## 🛠️ Development
+- `policy_status=ALLOWED|DENIED`
+- `policy_reason=...`
 
-### Local Setup
+## Audit log
 
-1. Clone the repository:
-```bash
-git clone https://github.com/QuantGeekDev/docker-mcp.git
-cd docker-mcp
-```
+Each request writes an authorization decision line to `DOCKER_MCP_AUTHZ_LOG_FILE`.
 
-2. Create and activate a virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-3. Install dependencies:
-```bash
-uv sync
-```
-
-### 🔍 Debugging
-
-Launch the MCP Inspector for debugging:
+## Local validation
 
 ```bash
-npx @modelcontextprotocol/inspector uv --directory <path-to-docker-mcp> run docker-mcp
+UV_CACHE_DIR=/Volumes/Data/_ai/mcp-working-cache/mcp-uv-cache/docker-mcp uv run python -m compileall src
+UV_CACHE_DIR=/Volumes/Data/_ai/mcp-working-cache/mcp-uv-cache/docker-mcp uv run python tests_policy.py
 ```
-
-The Inspector will provide a URL to access the debugging interface.
-
-## 📝 Available Tools
-
-The server provides the following tools:
-
-### create-container
-Creates a standalone Docker container
-```json
-{
-    "image": "image-name",
-    "name": "container-name",
-    "ports": {"80": "80"},
-    "environment": {"ENV_VAR": "value"}
-}
-```
-
-### deploy-compose
-Deploys a Docker Compose stack
-```json
-{
-    "project_name": "example-stack",
-    "compose_yaml": "version: '3.8'\nservices:\n  service1:\n    image: image1:latest\n    ports:\n      - '8080:80'"
-}
-```
-
-### get-logs
-Retrieves logs from a specific container
-```json
-{
-    "container_name": "my-container"
-}
-```
-
-### list-containers
-Lists all Docker containers
-```json
-{}
-```
-
-## 🚧 Current Limitations
-
-- No built-in environment variable support for containers
-- No volume management
-- No network management
-- No container health checks
-- No container restart policies
-- No container resource limits
-
-## 🤝 Contributing
-
-1. Fork the repository from [docker-mcp](https://github.com/QuantGeekDev/docker-mcp)
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Open a Pull Request
-
-## 📜 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## ✨ Authors
-
-- **Alex Andru** - *Initial work | Core contributor* - [@QuantGeekDev](https://github.com/QuantGeekDev)
-- **Ali Sadykov** - *Initial work  | Core contributor* - [@md-archive](https://github.com/md-archive)
-
----
-Made with ❤️
