@@ -77,6 +77,21 @@ Each request writes an authorization decision line to `DOCKER_MCP_AUTHZ_LOG_FILE
 ## Local validation
 
 ```bash
-UV_CACHE_DIR=/Volumes/Data/_ai/mcp-working-cache/mcp-uv-cache/docker-mcp uv run python -m compileall src
-UV_CACHE_DIR=/Volumes/Data/_ai/mcp-working-cache/mcp-uv-cache/docker-mcp uv run python tests_policy.py
+UV_CACHE_DIR=/Volumes/Data/_ai/_mcp/mcp-working-cache/_shared/uv uv run python -m compileall src
+UV_CACHE_DIR=/Volumes/Data/_ai/_mcp/mcp-working-cache/_shared/uv uv run python tests_policy.py
 ```
+
+## Local Customization Tracking
+- Local machine-specific integration, client wiring, and operational state are tracked under the external data root.
+- Local metadata path: `/Volumes/Data/_ai/_mcp/mcp-data/<name>/meta`
+- Repo-side capability contract is in `docs/local-capability/`.
+- Secrets are never stored in repo docs; only variable names and loading locations are documented.
+
+## Externalized .venv
+
+Repo path ".venv\" is a symlink to canonical cache location under "/Volumes/Data/_ai/_mcp/mcp-working-cache/docker-mcp/.venv\" to reduce repo-local mutable environment state.
+
+## Local Enhancements Capture (2026-03-13)
+- Captured current local changes, configuration updates, and operational enhancements for GitHub publication.
+- Includes synchronization with sub-repo link updates where applicable.
+- Cross-reference local docs and capability notes added in this repository.
